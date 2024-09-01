@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from "react";
 import { readerActions, useReaderSnapshot } from "./reader";
 
 import "./App.css";
+import throttle from "lodash.throttle";
 
 function App() {
   const [bookFile, setBookFile] = useState<File | null>(null);
@@ -28,8 +29,8 @@ function App() {
   }, [readerSnap.book, readerSnap.displayed]);
 
   useEffect(() => {
-    if (!readerSnap.iframeWindow) return;
-    const onWheel = (event: WheelEvent) => {
+    const onWheel = throttle((event: WheelEvent) => {
+      event.preventDefault();
       const deltaY = Math.sign(event.deltaY);
       const deltaX = Math.sign(event.deltaX);
       if (deltaY > 0 || deltaX > 0) {
@@ -37,10 +38,14 @@ function App() {
       } else {
         readerSnap.goPrev();
       }
-    };
-    readerSnap.iframeWindow.addEventListener("wheel", onWheel);
+    }, 50);
+    readerSnap.iframeWindow?.addEventListener("wheel", onWheel, {});
+    // While re-rendering, the wheel event is captured by the parent window because there is no iframe window.
+    window.document.addEventListener("wheel", onWheel);
+
     return () => {
       readerSnap.iframeWindow?.removeEventListener("wheel", onWheel);
+      window.document.removeEventListener("wheel", onWheel);
     };
   }, [readerSnap.iframeWindow, readerSnap.goNext, readerSnap.goPrev]);
 
