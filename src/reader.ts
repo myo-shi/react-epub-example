@@ -2,6 +2,8 @@ import Epub, { type Book, type Rendition, type Contents } from "epubjs";
 import type Section from "epubjs/types/section";
 import { proxy, ref, useSnapshot } from "valtio";
 
+import themes from "./modules/reader/theme.css?url";
+
 type Toc = { label: string; href: string }[];
 
 class Reader {
@@ -25,9 +27,9 @@ class Reader {
   }
 }
 
-function makeCssRuleImportant(cssStr?: string) {
-  return cssStr ? `${cssStr} !important` : cssStr;
-}
+// function makeCssRuleImportant(cssStr?: string) {
+//   return cssStr ? `${cssStr} !important` : cssStr;
+// }
 
 const reader = proxy(new Reader());
 
@@ -62,30 +64,18 @@ const actions = {
         allowScriptedContent: true,
       })
     );
+
     reader.rendition.themes.default({
       html: {
         padding: "0 !important",
       },
-      body: {
-        background: "transparent !important",
-        color: "#dde4e3",
-      },
-      "a:any-link": {
-        color: "#80d4d4 !important",
-        "text-decoration": "none !important",
-      },
-      "*": {
-        color: "#dde4e3",
-      },
-      "p, div, span": {
-        // "letter-spacing": `${readerSetting.letterGap}em !important`,
-        // "line-height": `${readerSetting.lineHeight} !important`,
-        // "margin-top": `${readerSetting.paragraphGap}px !important`,
-        // "margin-bottom": `${readerSetting.paragraphGap}px !important`,
-        color: makeCssRuleImportant("#dde4e3"),
-        background: makeCssRuleImportant("transparent"),
-      },
     });
+
+    reader.rendition.themes.register("dark", themes);
+    reader.rendition.themes.register("gray", themes);
+    reader.rendition.themes.register("light", themes);
+    reader.rendition.themes.select("light");
+
     reader.rendition.display().then(() => {
       console.log("displayed");
       reader.displayed = true;
@@ -99,6 +89,9 @@ const actions = {
     // biome-ignore lint/suspicious/noExplicitAny: <explanation>
     reader.rendition.on("selected", (cfiRange: any, contents: Contents) => {
       console.log("selected", cfiRange, contents);
+      reader.rendition?.annotations.highlight(cfiRange, {}, (e) => {
+        console.log("highlight clicked", e.target);
+      });
     });
     reader.rendition.on("started", () => {
       console.log("started");
@@ -112,10 +105,9 @@ const actions = {
     // biome-ignore lint/suspicious/noExplicitAny: <explanation>
     reader.rendition.on("relocated", (locations: any) => {
       console.log("relocated", locations.start.cfi);
-      const progress = reader.book?.locations.percentageFromCfi(
+      reader.progress = reader.book?.locations.percentageFromCfi(
         locations.start.cfi
       );
-      console.log(progress);
     });
     reader.rendition.on("removed", () => {
       console.log("removed");
@@ -123,6 +115,19 @@ const actions = {
     reader.rendition.on("markClicked", () => {
       console.log("markClicked");
     });
+    const keyListener = (e: KeyboardEvent) => {
+      // Left Key
+      if ((e.keyCode || e.which) === 37) {
+        reader.rendition?.prev();
+      }
+
+      // Right Key
+      if ((e.keyCode || e.which) === 39) {
+        reader.rendition?.next();
+      }
+    };
+    // reader.rendition.on("keyup", keyListener);
+    document.addEventListener("keyup", keyListener, false);
   },
 
   close: () => {
@@ -134,6 +139,8 @@ const actions = {
     reader.rendition = undefined;
     reader.toc = undefined;
   },
+
+  refresh: () => {},
 };
 
 const useReaderSnapshot = () => {
