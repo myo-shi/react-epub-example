@@ -79,16 +79,44 @@ function App() {
         </button>
       </div>
       <div
-        ref={viewerRef}
-        id="viewer"
         style={{
           flex: 1,
-          minHeight: "300px",
+          display: "flex",
+          minHeight: "100px",
           width: "100%",
           // `color-scheme: dark` will make iframe background white
-          colorScheme: "auto",
+          overflow: "hidden",
         }}
-      />
+      >
+        <div style={{ display: "flex", alignItems: "center" }}>
+          <button
+            type="button"
+            style={{ height: "200px" }}
+            onClick={() => readerSnap.goPrev()}
+          >
+            &#60;
+          </button>
+        </div>
+        <div
+          ref={viewerRef}
+          id="viewer"
+          style={{
+            flex: 1,
+            width: "100%",
+            overflow: "hidden",
+            colorScheme: "auto",
+          }}
+        />
+        <div style={{ display: "flex", alignItems: "center" }}>
+          <button
+            type="button"
+            style={{ height: "200px" }}
+            onClick={() => readerSnap.goNext()}
+          >
+            &#62;
+          </button>
+        </div>
+      </div>
       <div
         id="footer"
         style={{
@@ -96,14 +124,7 @@ function App() {
           justifyContent: "space-between",
           width: "100%",
         }}
-      >
-        <button type="button" onClick={() => readerSnap.goPrev()}>
-          Prev
-        </button>
-        <button type="button" onClick={() => readerSnap.goNext()}>
-          Next
-        </button>
-      </div>
+      />
     </div>
   );
 }
