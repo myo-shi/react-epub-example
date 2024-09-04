@@ -1,5 +1,4 @@
 .dark {
-	background: #0e1514;
 	color: #dde4e3;
 	::selection {
 		background: rgba(128, 212, 212, 0.3);
@@ -30,15 +29,18 @@
 }
 
 .gray {
-	background: #343a3a;
-	color: #dde4e3;
+	color: #dee3e5;
+	a {
+		color: #80d4d4 !important;
+		text-decoration: none !important;
+	}
 }
 
 .light {
-	background: #fff8f8;
+	background: hsl(210 40% 98%);
 	color: #161d1d;
 	a {
-		color: #8c4a60 !important;
+		color: hsl(224.3 76.3% 48%);
 	}
 	g.hl {
 		fill: #80d4d4 !important;

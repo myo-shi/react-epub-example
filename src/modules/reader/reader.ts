@@ -1,8 +1,7 @@
 import Epub, { type Book, type Rendition, type Contents } from "epubjs";
 import type Section from "epubjs/types/section";
 import { proxy, ref, useSnapshot } from "valtio";
-
-import themes from "./modules/reader/theme.css?url";
+import themes from "./theme.css?url";
 
 type Toc = { label: string; href: string }[];
 
@@ -13,6 +12,7 @@ class Reader {
   toc?: Toc;
   progress?: number;
   displayed = false;
+  isOpeningBook = false;
 
   goNext() {
     this.rendition?.next();
@@ -35,9 +35,14 @@ const reader = proxy(new Reader());
 
 const actions = {
   openBook: async (file: File) => {
+    // Prevent multiple rendering at once
+    if (reader.isOpeningBook) return;
+    reader.isOpeningBook = true;
+
     const ab = await file.arrayBuffer();
     reader.book = ref(Epub(ab));
     reader.book.ready.then(() => {
+      reader.isOpeningBook = false;
       return reader.book?.locations.generate(1600);
     });
     reader.book.loaded.navigation.then((nav) => {
@@ -74,7 +79,7 @@ const actions = {
     reader.rendition.themes.register("dark", themes);
     reader.rendition.themes.register("gray", themes);
     reader.rendition.themes.register("light", themes);
-    reader.rendition.themes.select("light");
+    reader.rendition.themes.select("gray");
 
     reader.rendition.display().then(() => {
       console.log("displayed");
