@@ -33,6 +33,15 @@ class Reader {
 
 const reader = proxy(new Reader());
 
+const keyListener = (event: KeyboardEvent) => {
+  if (event.key === "ArrowLeft") {
+    reader.rendition?.prev();
+  }
+  if (event.key === "ArrowRight") {
+    reader.rendition?.next();
+  }
+};
+
 const actions = {
   openBook: async (file: File) => {
     // Prevent multiple rendering at once
@@ -120,18 +129,8 @@ const actions = {
     reader.rendition.on("markClicked", () => {
       console.log("markClicked");
     });
-    const keyListener = (e: KeyboardEvent) => {
-      // Left Key
-      if ((e.keyCode || e.which) === 37) {
-        reader.rendition?.prev();
-      }
 
-      // Right Key
-      if ((e.keyCode || e.which) === 39) {
-        reader.rendition?.next();
-      }
-    };
-    // reader.rendition.on("keyup", keyListener);
+    reader.rendition.on("keyup", keyListener);
     document.addEventListener("keyup", keyListener, false);
   },
 
@@ -143,6 +142,7 @@ const actions = {
     reader.iframeWindow = undefined;
     reader.rendition = undefined;
     reader.toc = undefined;
+    document.removeEventListener("keyup", keyListener);
   },
 
   refresh: () => {},
