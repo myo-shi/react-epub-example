@@ -3,13 +3,13 @@
 @tailwind utilities;
 
 :root {
-	font-family: Inter, system-ui, Avenir, Helvetica, Arial, sans-serif;
-	line-height: 1.5;
-	font-weight: 400;
+	/* font-family: Inter, system-ui, Avenir, Helvetica, Arial, sans-serif; */
+	/* line-height: 1.5; */
+	/* font-weight: 400; */
 
-	color-scheme: light dark;
-	color: #bec9c8;
-	background-color: #343a3a;
+	/* color-scheme: light dark; */
+	/* color: #bec9c8; */
+	/* background-color: #343a3a; */
 
 	font-synthesis: none;
 	text-rendering: optimizeLegibility;
@@ -33,7 +33,7 @@ body {
 	width: 100vw;
 	height: 100vh;
 }
-/* 
+/*
 @media (prefers-color-scheme: light) {
 	:root {
 		color: #213547;
@@ -77,7 +77,8 @@ body {
 	}
 
 	.dark {
-		--background: 0 0% 3.9%;
+		/* --background: 0 0% 3.9%; */
+		--background: 240 10% 3.9%;
 		--foreground: 0 0% 98%;
 		--card: 0 0% 3.9%;
 		--card-foreground: 0 0% 98%;
@@ -104,11 +105,11 @@ body {
 	}
 }
 
-/* @layer base {
+@layer base {
 	* {
 		@apply border-border;
 	}
 	body {
 		@apply bg-background text-foreground;
 	}
-} */
+}

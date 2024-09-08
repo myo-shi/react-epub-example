@@ -13,7 +13,7 @@
 		text-decoration: none !important;
 	}
 	* {
-		color: "#dde4e3";
+		color: #dde4e3 !important;
 	}
 	p,
 	div,
@@ -23,8 +23,8 @@
         line-height: `${readerSetting.lineHeight} !important`,
         margin-top: `${readerSetting.paragraphGap}px !important`,
         margin-bottom: `${readerSetting.paragraphGap}px !important`, */
-		color: "#dde4e3";
-		background: "transparent";
+		color: #dde4e3;
+		background: transparent;
 	}
 }
 
@@ -33,6 +33,20 @@
 	a {
 		color: #80d4d4 !important;
 		text-decoration: none !important;
+	}
+	* {
+		color: #dde4e3;
+	}
+	p,
+	div,
+	span,
+	table {
+		/* letter-spacing: `${readerSetting.letterGap}em !important`,
+        line-height: `${readerSetting.lineHeight} !important`,
+        margin-top: `${readerSetting.paragraphGap}px !important`,
+        margin-bottom: `${readerSetting.paragraphGap}px !important`, */
+		color: #dde4e3;
+		background: transparent;
 	}
 }
 
