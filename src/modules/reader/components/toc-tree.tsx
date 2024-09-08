@@ -1,8 +1,8 @@
 import { Tree, type TreeDataItem } from "@/components/tree";
+import { Button } from "@/components/ui/button";
 import { useCallback, useMemo } from "react";
 import type { DeepReadonly } from "ts-essentials";
-import { readerActions, type Toc } from "../reader";
-import { Button } from "@/components/ui/button";
+import { type Toc, readerActions } from "../reader";
 
 type TocTreeProps = {
 	toc: DeepReadonly<Toc>;
