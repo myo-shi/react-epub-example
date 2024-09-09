@@ -7,8 +7,10 @@
 		"dev": "vite",
 		"build": "tsc -b && vite build",
 		"preview": "vite preview",
+		"typecheck": "tsc --noEmit --project tsconfig.app.json",
 		"check": "biome check ./",
-		"check:fix": "biome check --write ./"
+		"check:fix": "biome check --write ./",
+		"check-all": "run-p --print-label --continue-on-error check typecheck"
 	},
 	"dependencies": {
 		"@radix-ui/react-accordion": "^1.2.0",
@@ -39,11 +41,13 @@
 		"@vitejs/plugin-react": "^4.3.1",
 		"autoprefixer": "^10.4.20",
 		"globals": "^15.9.0",
+		"npm-run-all": "^4.1.5",
 		"postcss": "^8.4.44",
 		"tailwindcss": "^3.4.10",
 		"ts-essentials": "^10.0.2",
 		"typescript": "^5.5.3",
 		"typescript-eslint": "^8.0.1",
-		"vite": "^5.4.1"
+		"vite": "^5.4.1",
+		"vite-plugin-checker": "^0.8.0"
 	}
 }

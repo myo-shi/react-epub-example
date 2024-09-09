@@ -119,7 +119,7 @@ export function Header({ onCloseClick }: HeaderProps) {
 				</Button>
 			</div>
 			<SheetContent side="left" className="bg-zinc-950">
-				<Sidebar toc={toc} onSelect={() => setIsSheetOpen(false)} />
+				<Sidebar toc={toc ?? []} onSelect={() => setIsSheetOpen(false)} />
 			</SheetContent>
 		</Sheet>
 	);
