@@ -3,6 +3,8 @@ import Epub, {
 	type Rendition,
 	type Contents,
 	type NavItem,
+	type Location,
+	EpubCFI,
 } from "epubjs";
 import type Section from "epubjs/types/section";
 import { proxy, ref, useSnapshot } from "valtio";
@@ -10,33 +12,38 @@ import themes from "./theme.css?url";
 
 export type Toc = NavItem[];
 
-class Reader {
-	book?: Book;
-	iframeWindow?: Window;
-	rendition?: Rendition;
-	toc: Toc = [];
-	progress?: number;
-	displayed = false;
-	isOpeningBook = false;
+type ReaderState = {
+	book: Book | null;
+	iframeWindow: Window | null;
+	rendition: Rendition | null;
+	toc: Toc | null;
+	progress: number | null;
+	chapter: NavItem | null;
+	displayed: boolean;
+	isOpeningBook: boolean;
+};
 
-	goNext() {
-		this.rendition?.next();
-	}
+type ReaderStateKey = keyof ReaderState;
 
-	goPrev() {
-		this.rendition?.prev();
-	}
+const initialState: ReaderState = {
+	book: null,
+	iframeWindow: null,
+	rendition: null,
+	toc: null,
+	progress: null,
+	chapter: null,
+	displayed: false,
+	isOpeningBook: false,
+};
 
-	jumpTo(target: string) {
-		this.rendition?.display(target);
-	}
-}
+// https://valtio.dev/docs/how-tos/how-to-reset-state
+const resetObj = Object.assign({}, initialState);
+
+const reader = proxy(initialState);
 
 // function makeCssRuleImportant(cssStr?: string) {
 //   return cssStr ? `${cssStr} !important` : cssStr;
 // }
-
-const reader = proxy(new Reader());
 
 const keyListener = (event: KeyboardEvent) => {
 	if (event.key === "ArrowLeft") {
@@ -45,6 +52,42 @@ const keyListener = (event: KeyboardEvent) => {
 	if (event.key === "ArrowRight") {
 		reader.rendition?.next();
 	}
+};
+
+const flattenNavItems = (navItems: NavItem[]): NavItem[] => {
+	return navItems.reduce<NavItem[]>((acc, cur) => {
+		return acc.concat(cur, flattenNavItems(cur.subitems ?? []));
+	}, []);
+};
+
+const getCfiFromHref = (book: Book, href: string) => {
+	const [_, id] = href.split("#");
+	const section = book.spine.get(href);
+	const el = (
+		id ? section.document.getElementById(id) : section.document.body
+	) as Element;
+	return section.cfiFromElement(el);
+};
+
+const getChapter = (book: Book, location: Location) => {
+	const locationHref = location.start.href;
+
+	const match = flattenNavItems(book.navigation.toc)
+		.filter((chapter: NavItem) => {
+			return book
+				.canonical(chapter.href)
+				.includes(book.canonical(locationHref));
+		}, null)
+		.reduce((result: NavItem | null, chapter: NavItem) => {
+			const locationAfterChapter =
+				EpubCFI.prototype.compare(
+					location.start.cfi,
+					getCfiFromHref(book, chapter.href),
+				) > 0;
+			return locationAfterChapter ? chapter : result;
+		}, null);
+
+	return match;
 };
 
 const actions = {
@@ -74,13 +117,18 @@ const actions = {
 			reader.book.renderTo(targetEl, {
 				height: "100%",
 				width: "100%",
-				allowScriptedContent: true,
+				// gap: 10,
 			}),
 		);
 
 		reader.rendition.themes.default({
 			html: {
 				padding: "0 !important",
+			},
+			body: {
+				"padding-top": "0px !important",
+				"padding-left": "0px !important",
+				paddingRight: "0px !important",
 			},
 		});
 
@@ -119,16 +167,15 @@ const actions = {
 		reader.rendition.on("locationChanged", () => {
 			console.log("locationChanged");
 		});
-		// biome-ignore lint/suspicious/noExplicitAny: <explanation>
-		reader.rendition.on("relocated", (locations: any) => {
-			console.log("relocated", locations.start.cfi);
+		reader.rendition.on("relocated", (location: Location) => {
+			console.log("relocated", location);
+			if (!reader.book) {
+				return;
+			}
 			reader.progress = reader.book?.locations.percentageFromCfi(
-				locations.start.cfi,
+				location.start.cfi,
 			);
-
-			const spineItem = reader.book?.spine.get(locations.start.cfi);
-			const navItem = reader.book?.navigation.get("");
-			console.log("test", navItem, spineItem);
+			reader.chapter = getChapter(reader.book, location);
 		});
 		reader.rendition.on("removed", () => {
 			console.log("removed");
@@ -144,11 +191,18 @@ const actions = {
 	close: () => {
 		reader.rendition?.destroy();
 		reader.book?.destroy();
-		reader.displayed = false;
-		reader.book = undefined;
-		reader.iframeWindow = undefined;
-		reader.rendition = undefined;
-		reader.toc = [];
+		// https://github.com/microsoft/TypeScript/pull/30769#issuecomment-503643456
+		const setValue = <T extends object, K extends keyof T>(
+			o1: T,
+			o2: T,
+			key: K,
+		) => {
+			o1[key] = o2[key];
+		};
+		const keys = Object.keys(resetObj) as ReaderStateKey[];
+		for (const key of keys) {
+			setValue(reader, resetObj, key);
+		}
 		document.removeEventListener("keyup", keyListener);
 	},
 
@@ -156,6 +210,14 @@ const actions = {
 
 	jumpTo: (href: string) => {
 		reader.rendition?.display(href);
+	},
+
+	goNext: () => {
+		reader.rendition?.next();
+	},
+
+	goPrev: () => {
+		reader.rendition?.prev();
 	},
 };
 

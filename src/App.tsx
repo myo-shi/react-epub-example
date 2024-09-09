@@ -5,7 +5,7 @@ import { Reader } from "./modules/reader";
 
 import "./App.css";
 
-export const App = () => {
+export function App() {
 	const [bookFile, setBookFile] = useState<File | null>(null);
 	const openBookFile = async () => {
 		const [fileHandle] = await window.showOpenFilePicker();
@@ -30,4 +30,4 @@ export const App = () => {
 			)}
 		</ThemeProvider>
 	);
-};
+}

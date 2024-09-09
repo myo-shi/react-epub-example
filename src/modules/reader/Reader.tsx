@@ -12,11 +12,10 @@ type ReaderProps = {
 	onClose: () => void;
 };
 
-export const Reader: React.FC<ReaderProps> = ({ bookFile, onClose }) => {
+export function Reader({ bookFile, onClose }: ReaderProps) {
 	// biome-ignore lint/style/noNonNullAssertion: <explanation>
 	const viewerRef = useRef<HTMLDivElement>(null!);
-	const readerSnap = useReaderSnapshot();
-	const [isSheetOpen, setIsSheetOpen] = useState(false);
+	const { iframeWindow, displayed } = useReaderSnapshot();
 
 	const handleClose = () => {
 		readerActions.close();
@@ -24,10 +23,11 @@ export const Reader: React.FC<ReaderProps> = ({ bookFile, onClose }) => {
 	};
 
 	useEffect(() => {
+		if (displayed) return;
 		readerActions.openBook(bookFile).then(() => {
 			readerActions.render(viewerRef.current);
 		});
-	}, [bookFile]);
+	}, [bookFile, displayed]);
 
 	useEffect(() => {
 		const onWheel = throttle((event: WheelEvent) => {
@@ -35,83 +35,92 @@ export const Reader: React.FC<ReaderProps> = ({ bookFile, onClose }) => {
 			const deltaY = Math.sign(event.deltaY);
 			const deltaX = Math.sign(event.deltaX);
 			if (deltaY > -1 || deltaX > 0) {
-				readerSnap.goNext();
+				readerActions.goNext();
 			} else {
-				readerSnap.goPrev();
+				readerActions.goPrev();
 			}
 		}, 49);
-		readerSnap.iframeWindow?.addEventListener("wheel", onWheel, {});
+		iframeWindow?.addEventListener("wheel", onWheel, {});
 		// While re-rendering, the wheel event is captured by the parent window because there is no iframe window.
 		window.document.addEventListener("wheel", onWheel);
 
 		return () => {
-			readerSnap.iframeWindow?.removeEventListener("wheel", onWheel);
+			iframeWindow?.removeEventListener("wheel", onWheel);
 			window.document.removeEventListener("wheel", onWheel);
 		};
-	}, [readerSnap.iframeWindow, readerSnap.goNext, readerSnap.goPrev]);
+	}, [iframeWindow]);
 
 	return (
 		<div className={`flex h-full w-full overflow-hidden ${styles.black}`}>
-			<Sheet open={isSheetOpen} onOpenChange={(open) => setIsSheetOpen(open)}>
-				<div className="flex h-full w-full flex-1 flex-col bg-zinc-950">
-					<div id="header" className="flex gap-3">
-						<SheetTrigger asChild>
-							<Button variant={"ghost"}>
-								<HamburgerMenuIcon />
-							</Button>
-						</SheetTrigger>
-						<Button type="button" onClick={handleClose}>
-							Close
+			<div className="flex h-full w-full flex-1 flex-col bg-zinc-950">
+				<Header onCloseClick={handleClose} />
+				<div
+					style={{
+						flex: 1,
+						display: "flex",
+						minHeight: "100px",
+						width: "100%",
+						overflow: "hidden",
+					}}
+				>
+					<div className="flex items-center">
+						<Button
+							variant={"ghost"}
+							type="button"
+							className="h-52"
+							onClick={() => readerActions.goPrev()}
+						>
+							&#60;
 						</Button>
 					</div>
 					<div
+						ref={viewerRef}
+						id="viewer"
+						className="w-full flex-1 overflow-hidden"
 						style={{
-							flex: 1,
-							display: "flex",
-							minHeight: "100px",
-							width: "100%",
-							overflow: "hidden",
+							colorScheme: "auto",
 						}}
-					>
-						<div className="flex items-center">
-							<Button
-								variant={"ghost"}
-								type="button"
-								className="h-52"
-								onClick={() => readerSnap.goPrev()}
-							>
-								&#60;
-							</Button>
-						</div>
-						<div
-							ref={viewerRef}
-							id="viewer"
-							className="w-full flex-1 overflow-hidden"
-							style={{
-								colorScheme: "auto",
-							}}
-						/>
-						<div className="flex items-center">
-							<Button
-								variant={"ghost"}
-								type="button"
-								className="h-52"
-								onClick={() => readerSnap.goNext()}
-							>
-								&#62;
-							</Button>
-						</div>
-					</div>
-					<div id="footer" className="flex w-full justify-between" />
-				</div>
-
-				<SheetContent side="left" className="bg-zinc-950">
-					<Sidebar
-						toc={readerSnap.toc}
-						onSelect={() => setIsSheetOpen(false)}
 					/>
-				</SheetContent>
-			</Sheet>
+					<div className="flex items-center">
+						<Button
+							variant={"ghost"}
+							type="button"
+							className="h-52"
+							onClick={() => readerActions.goNext()}
+						>
+							&#62;
+						</Button>
+					</div>
+				</div>
+				<div id="footer" className="flex w-full justify-between" />
+			</div>
 		</div>
 	);
+}
+
+type HeaderProps = {
+	onCloseClick: () => void;
 };
+
+export function Header({ onCloseClick }: HeaderProps) {
+	const [isSheetOpen, setIsSheetOpen] = useState(false);
+	const { toc } = useReaderSnapshot();
+
+	return (
+		<Sheet open={isSheetOpen} onOpenChange={(open) => setIsSheetOpen(open)}>
+			<div id="header" className="flex gap-3">
+				<SheetTrigger asChild>
+					<Button variant={"ghost"}>
+						<HamburgerMenuIcon />
+					</Button>
+				</SheetTrigger>
+				<Button type="button" onClick={onCloseClick}>
+					Close
+				</Button>
+			</div>
+			<SheetContent side="left" className="bg-zinc-950">
+				<Sidebar toc={toc} onSelect={() => setIsSheetOpen(false)} />
+			</SheetContent>
+		</Sheet>
+	);
+}
