@@ -125,11 +125,7 @@ const actions = {
 			html: {
 				padding: "0 !important",
 			},
-			body: {
-				"padding-top": "0px !important",
-				"padding-left": "0px !important",
-				paddingRight: "0px !important",
-			},
+			body: {},
 		});
 
 		reader.rendition.themes.register("dark", themes);

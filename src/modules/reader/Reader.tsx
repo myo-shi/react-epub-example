@@ -3,6 +3,7 @@ import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
 import { HamburgerMenuIcon } from "@radix-ui/react-icons";
 import throttle from "lodash.throttle";
 import { useEffect, useRef, useState } from "react";
+import useTransitionState from "react-transition-state";
 import { Sidebar } from "./components/sidebar";
 import { readerActions, useReaderSnapshot } from "./reader";
 import styles from "./styles.module.css";
@@ -103,24 +104,57 @@ type HeaderProps = {
 };
 
 export function Header({ onCloseClick }: HeaderProps) {
+	const [{ status, isMounted }, toggle] = useTransitionState({
+		timeout: 300,
+		mountOnEnter: true,
+		unmountOnExit: true,
+		preEnter: true,
+	});
 	const [isSheetOpen, setIsSheetOpen] = useState(false);
-	const { toc } = useReaderSnapshot();
+	const { toc, chapter } = useReaderSnapshot();
 
 	return (
-		<Sheet open={isSheetOpen} onOpenChange={(open) => setIsSheetOpen(open)}>
-			<div id="header" className="flex gap-3">
-				<SheetTrigger asChild>
-					<Button variant={"ghost"}>
-						<HamburgerMenuIcon />
-					</Button>
-				</SheetTrigger>
-				<Button type="button" onClick={onCloseClick}>
-					Close
-				</Button>
+		<div id="header" className={"relative h-12 w-full"}>
+			<div
+				className="flex h-full items-center justify-center"
+				onMouseEnter={() => toggle(true)}
+			>
+				{chapter?.label}
 			</div>
-			<SheetContent side="left" className="bg-zinc-950">
-				<Sidebar toc={toc ?? []} onSelect={() => setIsSheetOpen(false)} />
-			</SheetContent>
-		</Sheet>
+
+			{isMounted && (
+				<div
+					onMouseLeave={() => toggle(false)}
+					className={`absolute top-0 bottom-0 left-0 w-full bg-zinc-900 transition duration-300${status === "preEnter" || status === "exiting" ? " transform opacity-0" : ""}`}
+				>
+					<Sheet
+						open={isSheetOpen}
+						onOpenChange={(open) => setIsSheetOpen(open)}
+					>
+						<div
+							className={
+								"flex h-full w-full items-center justify-between gap-3"
+							}
+						>
+							<SheetTrigger asChild>
+								<Button variant={"ghost"}>
+									<HamburgerMenuIcon />
+								</Button>
+							</SheetTrigger>
+
+							<Button type="button" onClick={onCloseClick}>
+								Close
+							</Button>
+							<SheetContent side="left" className="bg-zinc-950">
+								<Sidebar
+									toc={toc ?? []}
+									onSelect={() => setIsSheetOpen(false)}
+								/>
+							</SheetContent>
+						</div>
+					</Sheet>
+				</div>
+			)}
+		</div>
 	);
 }
