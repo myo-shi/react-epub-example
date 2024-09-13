@@ -98,26 +98,26 @@ const actions = {
 
 		const ab = await file.arrayBuffer();
 		reader.book = ref(Epub(ab));
-		reader.book.ready.then(() => {
-			reader.isOpeningBook = false;
-			return reader.book?.locations.generate(1600);
-		});
+		await reader.book.ready;
+		reader.isOpeningBook = false;
+		reader.book?.locations.generate(1600);
 		reader.book.loaded.navigation.then((nav) => {
 			reader.toc = ref(nav.toc);
 		});
+		return;
 	},
 
 	render: (targetEl: Element) => {
 		if (!reader.book) {
 			throw new Error("Open book first");
 		}
-		console.log("render");
+		console.log("start rendering");
 
 		reader.rendition = ref(
 			reader.book.renderTo(targetEl, {
 				height: "100%",
 				width: "100%",
-				// gap: 10,
+				allowScriptedContent: true,
 			}),
 		);
 
@@ -132,6 +132,20 @@ const actions = {
 		reader.rendition.themes.register("gray", themes);
 		reader.rendition.themes.register("light", themes);
 		reader.rendition.themes.select("gray");
+
+		// https://github.com/futurepress/epub.js/issues/1257
+		reader.rendition.hooks.content.register(
+			(contents: Contents, rendition: Rendition) => {
+				const isCJK = ["ja", "ko", "zh-CN", "zh-TW"].some(
+					(c) => c === reader.book?.packaging.metadata.language,
+				); //TODO: check lang codes
+				if (isCJK && reader.book?.packaging.metadata.direction === "rtl") {
+					contents.document.body.style.direction = "ltr";
+					rendition.manager.layout.format(contents);
+				}
+				rendition.manager.layout.format(contents);
+			},
+		);
 
 		reader.rendition.display().then(() => {
 			console.log("displayed");
@@ -209,11 +223,19 @@ const actions = {
 	},
 
 	goNext: () => {
-		reader.rendition?.next();
+		if (reader.book?.packaging.metadata.direction === "rtl") {
+			reader.rendition?.prev();
+		} else {
+			reader.rendition?.next();
+		}
 	},
 
 	goPrev: () => {
-		reader.rendition?.prev();
+		if (reader.book?.packaging.metadata.direction === "rtl") {
+			reader.rendition?.next();
+		} else {
+			reader.rendition?.prev();
+		}
 	},
 };
 
