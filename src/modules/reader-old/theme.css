@@ -1,0 +1,64 @@
+.dark {
+	color: #dde4e3;
+	::selection {
+		background: rgba(128, 212, 212, 0.3);
+	}
+	g.hl {
+		fill: #80d4d4;
+		fill-opacity: 0.3;
+		mix-blend-mode: multiply;
+	}
+	a {
+		color: #80d4d4 !important;
+		text-decoration: none !important;
+	}
+	* {
+		color: #dde4e3 !important;
+	}
+	p,
+	div,
+	span,
+	table {
+		/* letter-spacing: `${readerSetting.letterGap}em !important`,
+        line-height: `${readerSetting.lineHeight} !important`,
+        margin-top: `${readerSetting.paragraphGap}px !important`,
+        margin-bottom: `${readerSetting.paragraphGap}px !important`, */
+		color: #dde4e3;
+		background: transparent;
+	}
+}
+
+.gray {
+	color: #dee3e5;
+	a {
+		color: #80d4d4 !important;
+		text-decoration: none !important;
+	}
+	* {
+		color: #dde4e3;
+	}
+	p,
+	div,
+	span,
+	table {
+		/* letter-spacing: `${readerSetting.letterGap}em !important`,
+        line-height: `${readerSetting.lineHeight} !important`,
+        margin-top: `${readerSetting.paragraphGap}px !important`,
+        margin-bottom: `${readerSetting.paragraphGap}px !important`, */
+		color: #dde4e3;
+		background: transparent;
+	}
+}
+
+.light {
+	background: hsl(210 40% 98%);
+	color: #161d1d;
+	a {
+		color: hsl(224.3 76.3% 48%);
+	}
+	g.hl {
+		fill: #80d4d4 !important;
+		fill-opacity: 0.3;
+		mix-blend-mode: multiply;
+	}
+}
