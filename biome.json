@@ -1,36 +1,41 @@
 {
-	"$schema": "https://biomejs.dev/schemas/1.8.3/schema.json",
-	"organizeImports": {
-		"enabled": true
-	},
-	"files": {
-		"ignore": ["node_modules/**", "tsconfig.*.json", ".zed/**"]
-	},
-	"linter": {
-		"enabled": true,
-		"rules": {
-			"recommended": true,
-			"style": {
-				"useSelfClosingElements": {
-					"level": "error",
-					"fix": "safe"
-				}
-			},
-			"nursery": {
-				"useSortedClasses": {
-					"level": "error",
-					"fix": "safe",
-					"options": {}
-				}
-			}
-		}
-	},
-	"formatter": {
-		"enabled": true
-	},
-	"css": {
-		"formatter": {
-			"enabled": true
-		}
-	}
+  "$schema": "https://biomejs.dev/schemas/1.8.3/schema.json",
+  "organizeImports": {
+    "enabled": true
+  },
+  "files": {
+    "ignore": [
+      "node_modules/**",
+      "tsconfig.*.json",
+      ".zed/**",
+      "src/lib/foliate-js/**"
+    ]
+  },
+  "linter": {
+    "enabled": true,
+    "rules": {
+      "recommended": true,
+      "style": {
+        "useSelfClosingElements": {
+          "level": "error",
+          "fix": "safe"
+        }
+      },
+      "nursery": {
+        "useSortedClasses": {
+          "level": "error",
+          "fix": "safe",
+          "options": {}
+        }
+      }
+    }
+  },
+  "formatter": {
+    "enabled": true
+  },
+  "css": {
+    "formatter": {
+      "enabled": true
+    }
+  }
 }
