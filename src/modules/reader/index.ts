@@ -1,1 +1,1 @@
-export { Reader } from "./Reader";
+export { ReaderComp as Reader } from "./Reader";

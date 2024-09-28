@@ -1,246 +1,131 @@
-import Epub, {
-	type Book,
-	type Rendition,
-	type Contents,
-	type NavItem,
-	type Location,
-	EpubCFI,
-} from "epubjs";
-import type Section from "epubjs/types/section";
-import { proxy, ref, useSnapshot } from "valtio";
-import themes from "./theme.css?url";
+import "@/lib/foliate-js/view.js";
+import { EPUB } from "../../lib/foliate-js/epub.js";
+import {
+	BlobReader,
+	BlobWriter,
+	configure,
+	TextWriter,
+	ZipReader,
+} from "../../lib/foliate-js/vendor/zip.js";
+import type { View } from "@/lib/foliate-js/view";
 
-export type Toc = NavItem[];
-
-type ReaderState = {
-	book: Book | null;
-	iframeWindow: Window | null;
-	rendition: Rendition | null;
-	toc: Toc | null;
-	progress: number | null;
-	chapter: NavItem | null;
-	displayed: boolean;
-	isOpeningBook: boolean;
+const makeZipLoader = async (file: File) => {
+	configure({ useWebWorkers: false });
+	const reader = new ZipReader(new BlobReader(file));
+	const entries = (await reader.getEntries()) as any[];
+	const map = new Map(entries.map((entry) => [entry.filename, entry]));
+	const load =
+		(fn: (entry: any, ...rest: any) => void) =>
+		(name: string, ...args: any) =>
+			map.has(name) ? fn(map.get(name), ...args) : null;
+	const loadText = load((entry) => entry.getData(new TextWriter()));
+	const loadBlob = load((entry, type) => entry.getData(new BlobWriter(type)));
+	const getSize = (name: string) => map.get(name)?.uncompressedSize ?? 0;
+	return { entries, loadText, loadBlob, getSize };
 };
 
-type ReaderStateKey = keyof ReaderState;
+const getView = async (file: File, elm: View) => {
+	const loader = await makeZipLoader(file);
+	const book = await new EPUB(loader as any).init();
+	if (!book) throw new Error("File type not supported");
+	console.log("load book", book, elm);
 
-const initialState: ReaderState = {
-	book: null,
-	iframeWindow: null,
-	rendition: null,
-	toc: null,
-	progress: null,
-	chapter: null,
-	displayed: false,
-	isOpeningBook: false,
+	await elm.open(book);
+	return elm;
 };
 
-// https://valtio.dev/docs/how-tos/how-to-reset-state
-const resetObj = Object.assign({}, initialState);
+export class Reader {
+	view: View | null = null;
+	isOpening = false;
+	selectedText: string | null = null;
 
-const reader = proxy(initialState);
+	async open(file: File, ref: React.RefObject<View>) {
+		if (this.isOpening || !ref.current) return;
 
-// function makeCssRuleImportant(cssStr?: string) {
-//   return cssStr ? `${cssStr} !important` : cssStr;
-// }
+		this.isOpening = true;
+		this.view = await getView(file, ref.current);
+		this.view.addEventListener("load", this.#onLoad.bind(this));
+		// this.view.addEventListener("relocate", this.#onRelocate.bind(this));
 
-const keyListener = (event: KeyboardEvent) => {
-	if (event.key === "ArrowLeft") {
-		reader.rendition?.prev();
+		const { book } = this.view;
+		// this.view.renderer.setStyles?.(getCSS(this.style));
+		this.view.renderer?.next();
+
+		document.addEventListener("select", (ev) => {
+			console.log(ev);
+		});
 	}
-	if (event.key === "ArrowRight") {
-		reader.rendition?.next();
+
+	#handleKeydown(event: KeyboardEvent) {
+		const k = event.key;
+		if (k === "ArrowLeft" || k === "h") this.view.goLeft();
+		else if (k === "ArrowRight" || k === "l") this.view.goRight();
 	}
-};
+	#onLoad({ detail }: any) {
+		const doc = detail.doc as Document;
+		doc.addEventListener("keydown", this.#handleKeydown.bind(this));
+		doc.addEventListener("selectionchange", () => {
+			console.log("select", doc.getSelection());
+			this.selectedText = doc.getSelection()?.toString() ?? null;
 
-const flattenNavItems = (navItems: NavItem[]): NavItem[] => {
-	return navItems.reduce<NavItem[]>((acc, cur) => {
-		return acc.concat(cur, flattenNavItems(cur.subitems ?? []));
-	}, []);
-};
+			const iframe = document.getElementsByTagName("iframe").item(0);
+			console.log(iframe);
 
-const getCfiFromHref = (book: Book, href: string) => {
-	const [_, id] = href.split("#");
-	const section = book.spine.get(href);
-	const el = (
-		id ? section.document.getElementById(id) : section.document.body
-	) as Element;
-	return section.cfiFromElement(el);
-};
-
-const getChapter = (book: Book, location: Location) => {
-	const locationHref = location.start.href;
-
-	const match = flattenNavItems(book.navigation.toc)
-		.filter((chapter: NavItem) => {
-			return book
-				.canonical(chapter.href)
-				.includes(book.canonical(locationHref));
-		}, null)
-		.reduce((result: NavItem | null, chapter: NavItem) => {
-			const locationAfterChapter =
-				EpubCFI.prototype.compare(
-					location.start.cfi,
-					getCfiFromHref(book, chapter.href),
-				) > 0;
-			return locationAfterChapter ? chapter : result;
-		}, null);
-
-	return match;
-};
-
-const actions = {
-	openBook: async (file: File) => {
-		// Prevent multiple rendering at once
-		if (reader.isOpeningBook) return;
-		reader.isOpeningBook = true;
-
-		const ab = await file.arrayBuffer();
-		reader.book = ref(Epub(ab));
-		await reader.book.ready;
-		reader.isOpeningBook = false;
-		reader.book?.locations.generate(1600);
-		reader.book.loaded.navigation.then((nav) => {
-			reader.toc = ref(nav.toc);
-		});
-		return;
-	},
-
-	render: (targetEl: Element) => {
-		if (!reader.book) {
-			throw new Error("Open book first");
-		}
-		console.log("start rendering");
-
-		reader.rendition = ref(
-			reader.book.renderTo(targetEl, {
-				height: "100%",
-				width: "100%",
-				allowScriptedContent: true,
-			}),
-		);
-
-		reader.rendition.themes.default({
-			html: {
-				padding: "0 !important",
-			},
-			body: {},
-		});
-
-		reader.rendition.themes.register("dark", themes);
-		reader.rendition.themes.register("gray", themes);
-		reader.rendition.themes.register("light", themes);
-		reader.rendition.themes.select("gray");
-
-		// https://github.com/futurepress/epub.js/issues/1257
-		reader.rendition.hooks.content.register(
-			(contents: Contents, rendition: Rendition) => {
-				const isCJK = ["ja", "ko", "zh-CN", "zh-TW"].some(
-					(c) => c === reader.book?.packaging.metadata.language,
-				); //TODO: check lang codes
-				if (isCJK && reader.book?.packaging.metadata.direction === "rtl") {
-					contents.document.body.style.direction = "ltr";
-					rendition.manager.layout.format(contents);
-				}
-				rendition.manager.layout.format(contents);
-			},
-		);
-
-		reader.rendition.display().then(() => {
-			console.log("displayed");
-			reader.displayed = true;
-		});
-
-		// biome-ignore lint/suspicious/noExplicitAny: <explanation>
-		reader.rendition.on("rendered", (section: Section, view: any) => {
-			console.log("rendered", section);
-			reader.iframeWindow = ref(view.window);
-		});
-		// biome-ignore lint/suspicious/noExplicitAny: <explanation>
-		reader.rendition.on("selected", (cfiRange: any, contents: Contents) => {
-			console.log("selected", cfiRange, contents);
-			// reader.rendition?.annotations.highlight(
-			//   cfiRange,
-			//   {},
-			//   (event: MouseEvent) => {
-			//     console.log("highlight clicked", event.target);
-			//   }
-			// );
-		});
-		reader.rendition.on("started", () => {
-			console.log("started");
-		});
-		reader.rendition.on("displayed", () => {
-			console.log("displayed");
-		});
-		reader.rendition.on("locationChanged", () => {
-			console.log("locationChanged");
-		});
-		reader.rendition.on("relocated", (location: Location) => {
-			console.log("relocated", location);
-			if (!reader.book) {
-				return;
+			const old = window.document.getElementById("selected");
+			if (old) {
+				window.document.body.removeChild(old);
 			}
-			reader.progress = reader.book?.locations.percentageFromCfi(
-				location.start.cfi,
-			);
-			reader.chapter = getChapter(reader.book, location);
+			const selection = window.getSelection();
+			if (selection && selection.rangeCount > 0) {
+				selection.removeAllRanges();
+			}
+			const elm = window.document.createElement("div");
+			elm.innerText = this.selectedText ?? "";
+			elm.id = "selected";
+			elm.style.position = "absolute";
+			elm.style.top = "0";
+			elm.style.left = "0";
+			elm.style.visibility = "hidden";
+
+			window.document.body.appendChild(elm);
+			const range = window.document.createRange();
+			const target = window.document.getElementById("selected");
+			if (target) {
+				console.log("target", target);
+				window.setTimeout(() => {
+					range.selectNode(target);
+					selection?.addRange(range);
+					console.log("range", range);
+				}, 100);
+			}
 		});
-		reader.rendition.on("removed", () => {
-			console.log("removed");
+		doc.addEventListener("mousemove", (event) => {
+			// const rect = (
+			// 	this.view.renderer as HTMLElement & { boundingRect: DOMRect }
+			// ).boundingRect;
+			const innerScreenX = window.screenX;
+			const innerScreenY =
+				window.outerHeight - window.innerHeight + window.screenY;
+			console.log("event", event.screenX, event.screenY);
+
+			const mouseEvent = new MouseEvent("mousemove", {
+				bubbles: true,
+				cancelable: true,
+				clientX: event.screenX - innerScreenX,
+				clientY: event.screenY - innerScreenY,
+			});
+			window.dispatchEvent(mouseEvent);
+			// console.log("test", rect, event.clientX, event.screenX, event.pageX);
 		});
-		reader.rendition.on("markClicked", () => {
-			console.log("markClicked");
-		});
-
-		reader.rendition.on("keyup", keyListener);
-		document.addEventListener("keyup", keyListener, false);
-	},
-
-	close: () => {
-		reader.rendition?.destroy();
-		reader.book?.destroy();
-		// https://github.com/microsoft/TypeScript/pull/30769#issuecomment-503643456
-		const setValue = <T extends object, K extends keyof T>(
-			o1: T,
-			o2: T,
-			key: K,
-		) => {
-			o1[key] = o2[key];
-		};
-		const keys = Object.keys(resetObj) as ReaderStateKey[];
-		for (const key of keys) {
-			setValue(reader, resetObj, key);
-		}
-		document.removeEventListener("keyup", keyListener);
-	},
-
-	refresh: () => {},
-
-	jumpTo: (href: string) => {
-		reader.rendition?.display(href);
-	},
-
-	goNext: () => {
-		if (reader.book?.packaging.metadata.direction === "rtl") {
-			reader.rendition?.prev();
-		} else {
-			reader.rendition?.next();
-		}
-	},
-
-	goPrev: () => {
-		if (reader.book?.packaging.metadata.direction === "rtl") {
-			reader.rendition?.next();
-		} else {
-			reader.rendition?.prev();
-		}
-	},
-};
-
-const useReaderSnapshot = () => {
-	return useSnapshot(reader);
-};
-
-export { actions as readerActions, useReaderSnapshot };
+	}
+	// #onRelocate({ detail }: any) {
+	// 	const { fraction, location, tocItem, pageItem } = detail;
+	// 	const percent = percentFormat.format(fraction);
+	// 	const loc = pageItem ? `Page ${pageItem.label}` : `Loc ${location.current}`;
+	// 	const slider = $("#progress-slider");
+	// 	slider.style.visibility = "visible";
+	// 	slider.value = fraction;
+	// 	slider.title = `${percent} · ${loc}`;
+	// 	if (tocItem?.href) this.#tocView?.setCurrentHref?.(tocItem.href);
+	// }
+}
