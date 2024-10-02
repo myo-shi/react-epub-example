@@ -32,9 +32,6 @@
   },
   "formatter": {
     "enabled": true,
-    "ignore": [
-      "src/lib/foliate-js/**"
-    ]
   },
   "css": {
     "formatter": {

@@ -12,5 +12,17 @@
   "code_actions_on_format": {
     "source.fixAll.biome": true,
     "source.organizeImports.biome": true
+  },
+  "file_types": {
+    "JSONC": [
+      "tsconfig.*.json"
+    ]
+  },
+  "lsp": {
+    "biome": {
+      "settings": {
+        "config_path": "../biome.json"
+      }
+    }
   }
 }
