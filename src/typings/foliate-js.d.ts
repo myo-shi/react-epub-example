@@ -6,7 +6,7 @@ declare namespace JSX {
 }
 
 declare module "@/lib/foliate-js/epubcfi" {
-  export class CFI { }
+  export type CFI = `epubcfi(${string})`;
 }
 
 declare module "@/lib/foliate-js/overlayer" {
@@ -14,6 +14,7 @@ declare module "@/lib/foliate-js/overlayer" {
 
   export class Overlayer {
     static underline(rects: Rects, options?: any): void;
+    static highlight(rects: Rects, options?: any): void;
   }
 }
 
@@ -23,14 +24,21 @@ declare module "@/lib/foliate-js/epub" {
 
 declare module "@/lib/foliate-js/view" {
   import type { EPUB } from "@/lib/foliate-js/epub";
-  import type { CFI } from 'lib/foliate-js/epubcfi'
+  import type { CFI } from '@/lib/foliate-js/epubcfi'
 
   type Annotation = {
-    value: CFI;
+    value: string;
+    color?: string;
   }
 
   interface Paginator extends HTMLElement {
     next(): Promise<void>
+  }
+
+  // https://github.com/vaadin/web-components/issues/350
+  interface FoliateViewElementEventMap {
+    "load": CustomEvent<{ index: number; doc: Document }>;
+    "draw-annotation": CustomEvent<{ draw: any; annotation: any }>;
   }
 
   export class View extends HTMLElement {
@@ -40,5 +48,6 @@ declare module "@/lib/foliate-js/view" {
     goRight(): Promise<void>;
     getCFI(index: number, range?: Range): CFI
     addAnnotation(annotation: Annotation, remove?: boolean): Promise<void>
+    addEventListener<K extends keyof FoliateViewElementEventMap>(type: K, listener: (this: HTMLElement, ev: FoliateViewElementEventMap[K]) => any, options?: boolean | AddEventListenerOptions): void;
   }
 }

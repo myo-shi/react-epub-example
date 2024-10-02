@@ -46,7 +46,7 @@ export class Reader {
 
     this.isOpening = true;
     this.view = await getView(file, ref.current);
-    this.view.addEventListener("load", this.#onLoad.bind(this));
+    this.view.addEventListener("load", (event => this.#onLoad.bind(this, event));
     // this.view.addEventListener("relocate", this.#onRelocate.bind(this));
 
     const { book } = this.view;
@@ -68,13 +68,15 @@ export class Reader {
     if (k === "ArrowLeft" || k === "h") this.view?.goLeft();
     else if (k === "ArrowRight" || k === "l") this.view?.goRight();
   }
-  #onLoad({ detail }: any) {
-    const doc = detail.doc as Document;
+  #onLoad(event: { detail: { doc: Document; index: number } }) {
+    const { detail } = event
+    const doc = detail.doc;
     doc.addEventListener("keydown", this.#handleKeydown.bind(this));
     doc.addEventListener("selectionchange", debounce(async () => {
+      if (!this.view) return;
       console.log("select", doc.getSelection());
       this.selectedText = doc.getSelection()?.toString() ?? null;
-      const cfi = this.view?.getCFI(detail.index, doc.getSelection()?.getRangeAt(0))
+      const cfi = this.view.getCFI(detail.index, doc.getSelection()?.getRangeAt(0))
       console.log('cfi', cfi, detail.index);
       this.view?.addAnnotation({ value: cfi })
 
