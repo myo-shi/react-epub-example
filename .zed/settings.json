@@ -17,5 +17,6 @@
     "JSONC": [
       "tsconfig.*.json"
     ]
-  }
+  },
+  "ensure_final_newline_on_save": false
 }
