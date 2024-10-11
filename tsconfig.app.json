@@ -27,5 +27,6 @@
       "@/*": ["./src/*"]
     }
   },
-  "include": ["src", "src/foliate-js.d.ts"]
+  "include": ["src"],
+  "exclude": ["src/modules/reader-epubjs/**"]
 }
