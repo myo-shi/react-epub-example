@@ -1,6 +1,12 @@
 import { Button } from "@/components/ui/button";
+import {
+	Popover,
+	PopoverAnchor,
+	PopoverContent,
+} from "@/components/ui/popover";
 import type { View } from "@/lib/foliate-js/view";
-import { useEffect, useRef } from "react";
+import { PopoverArrow, PopoverPortal } from "@radix-ui/react-popover";
+import { useEffect, useRef, useState } from "react";
 import { Reader } from "./reader";
 import styles from "./styles.module.css";
 
@@ -11,16 +17,41 @@ type ReaderProps = {
 
 const reader = new Reader();
 
-window.addEventListener("selectionchange", (event) => {
-	console.log("selectionchange", window.getSelection());
-});
-
-export function ReaderComp({ bookFile, onClose }: ReaderProps) {
+export function ReaderComp({ bookFile }: ReaderProps) {
 	const viewerRef = useRef<View>(
 		document.getElementById("foliate-view") as unknown as View,
 	);
+	const [annotationPosition, setAnnotationPosition] = useState<{
+		top: number;
+		left: number;
+		right: number;
+		bottom: number;
+		height: number;
+		width: number;
+	} | null>(null);
 	useEffect(() => {
-		reader.open(bookFile, viewerRef);
+		const open = async () => {
+			const view = await reader.open(bookFile, viewerRef);
+			view?.addEventListener("text-selected", ({ detail }) => {
+				const range = detail.selection.getRangeAt(0);
+				const rects = range.getBoundingClientRect();
+				const container: Element = view.renderer.container;
+				const containerRects = container.getBoundingClientRect();
+				const left = containerRects.left + rects.left;
+				const top = containerRects.top + rects.top;
+				const bottom = containerRects.bottom + rects.bottom;
+				const right = containerRects.right + rects.right;
+				setAnnotationPosition({
+					left,
+					top,
+					bottom,
+					right,
+					height: rects.height,
+					width: rects.width,
+				});
+			});
+		};
+		open();
 	}, [bookFile]);
 
 	// const { iframeWindow, displayed } = useReaderSnapshot();
@@ -59,46 +90,71 @@ export function ReaderComp({ bookFile, onClose }: ReaderProps) {
 	// }, [iframeWindow]);
 
 	return (
-		<div className={`flex h-full w-full overflow-hidden ${styles.black}`}>
-			<div className="flex h-full w-full flex-1 flex-col bg-zinc-950">
-				<div
-					style={{
-						flex: 1,
-						display: "flex",
-						minHeight: "100px",
-						width: "100%",
-						overflow: "hidden",
-					}}
-				>
-					<div className="flex items-center">
-						<Button
-							variant={"ghost"}
-							type="button"
-							className="h-52"
-							// onClick={() => readerActions.goPrev()}
-						>
-							&#60;
-						</Button>
+		<>
+			<div className={`flex h-full w-full overflow-hidden ${styles.black}`}>
+				<div className="flex h-full w-full flex-1 flex-col bg-zinc-950">
+					<div
+						style={{
+							flex: 1,
+							display: "flex",
+							minHeight: "100px",
+							width: "100%",
+							overflow: "hidden",
+						}}
+					>
+						<div className="flex items-center">
+							<Button
+								variant={"ghost"}
+								type="button"
+								className="h-52"
+								// onClick={() => readerActions.goPrev()}
+							>
+								&#60;
+							</Button>
+						</div>
+						<foliate-view
+							ref={viewerRef}
+							id="foliate-view"
+							style={{ width: "100%", flex: 1, background: "white" }}
+						/>
+						<div className="flex items-center">
+							<Button
+								variant={"ghost"}
+								type="button"
+								className="h-52"
+								// onClick={() => readerActions.goNext()}
+							>
+								&#62;
+							</Button>
+						</div>
 					</div>
-					<foliate-view
-						ref={viewerRef}
-						id="foliate-view"
-						style={{ width: "100%", flex: 1, background: "white" }}
-					/>
-					<div className="flex items-center">
-						<Button
-							variant={"ghost"}
-							type="button"
-							className="h-52"
-							// onClick={() => readerActions.goNext()}
-						>
-							&#62;
-						</Button>
-					</div>
+					<div id="footer" className="flex w-full justify-between" />
 				</div>
-				<div id="footer" className="flex w-full justify-between" />
 			</div>
-		</div>
+			<Popover open={annotationPosition !== null}>
+				<PopoverAnchor
+					style={{
+						userSelect: "none",
+						pointerEvents: "none",
+						position: "fixed",
+						left: annotationPosition?.left,
+						top: annotationPosition?.top,
+						height: annotationPosition?.height,
+						width: annotationPosition?.width,
+					}}
+				/>
+				<PopoverPortal>
+					<PopoverContent
+						onPointerDownOutside={() => {
+							setAnnotationPosition(null);
+						}}
+					>
+						<div>test</div>
+						<PopoverArrow />
+					</PopoverContent>
+				</PopoverPortal>
+			</Popover>
+		</>
 	);
 }
 

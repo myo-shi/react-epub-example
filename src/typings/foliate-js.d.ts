@@ -19,20 +19,34 @@ declare module "@/lib/foliate-js/overlayer" {
 		width?: number;
 	};
 
+	export type DrawFunc = (rects: Rects, options?: any) => void;
+
 	export class Overlayer {
-		get element(): HTMLElement;
-		static underline(rects: Rects, options?: any): void;
-		static highlight(rects: Rects, options?: any): void;
+		get element(): HTMLOrSVGElement;
+		static underline: DrawFunc;
+		static highlight: DrawFunc;
+		static strikethrough: DrawFunc;
+		static squiggly: DrawFunc;
+		static outline: DrawFunc;
 	}
 }
 
 declare module "@/lib/foliate-js/epub" {
-	export class EPUB {}
+	export class EPUB {
+		constructor(params: {
+			loadText: any;
+			loadBlob: any;
+			getSize: (name: string) => number;
+			sha1?: any;
+		});
+		init(): Promise<void>;
+	}
 }
 
 declare module "@/lib/foliate-js/view" {
 	import type { EPUB } from "@/lib/foliate-js/epub";
 	import type { CFI } from "@/lib/foliate-js/epubcfi";
+	import type { DrawFunc } from "@/lib/foliate-js/overlayer";
 
 	type Annotation = {
 		value: string;
@@ -41,12 +55,27 @@ declare module "@/lib/foliate-js/view" {
 
 	interface Paginator extends HTMLElement {
 		next(): Promise<void>;
+		get container(): Element;
 	}
 
 	// https://github.com/vaadin/web-components/issues/350
 	interface FoliateViewElementEventMap {
 		load: CustomEvent<{ index: number; doc: Document }>;
-		"draw-annotation": CustomEvent<{ draw: any; annotation: any }>;
+		"draw-annotation": CustomEvent<{
+			draw: (func: DrawFunc, opts?: any) => void;
+			annotation: Annotation;
+			doc: any;
+			range: any;
+		}>;
+		"show-annotation": CustomEvent<{
+			value: string;
+			range: any;
+			index: number;
+		}>;
+		"text-selected": CustomEvent<{
+			selection: Selection;
+			container: Element;
+		}>;
 	}
 
 	export class View extends HTMLElement {
