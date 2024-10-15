@@ -1,16 +1,7 @@
 import "@/lib/foliate-js/view";
-import { EPUB } from "@/lib/foliate-js/epub";
 import { Overlayer } from "@/lib/foliate-js/overlayer";
 import type { View } from "@/lib/foliate-js/view";
 import debounce from "lodash.debounce";
-import {
-	BlobReader,
-	BlobWriter,
-	TextWriter,
-	ZipReader,
-	configure,
-} from "../../lib/foliate-js/vendor/zip.js";
-
 const getCSS = ({
 	spacing,
 	justify,
@@ -57,31 +48,6 @@ const getCSS = ({
         display: none;
     }
 `;
-
-const makeZipLoader = async (file: File) => {
-	configure({ useWebWorkers: false });
-	const reader = new ZipReader(new BlobReader(file));
-	const entries = (await reader.getEntries()) as any[];
-	const map = new Map(entries.map((entry) => [entry.filename, entry]));
-	const load =
-		(fn: (entry: any, ...rest: any) => void) =>
-		(name: string, ...args: any) =>
-			map.has(name) ? fn(map.get(name), ...args) : null;
-	const loadText = load((entry) => entry.getData(new TextWriter()));
-	const loadBlob = load((entry, type) => entry.getData(new BlobWriter(type)));
-	const getSize = (name: string) => map.get(name)?.uncompressedSize ?? 0;
-	return { entries, loadText, loadBlob, getSize };
-};
-
-const getView = async (file: File, elm: View) => {
-	const loader = await makeZipLoader(file);
-	const book = await new EPUB(loader).init();
-	if (!book) throw new Error("File type not supported");
-	console.log("load book", book, elm);
-
-	await elm.open(book);
-	return elm;
-};
 
 const frameRect = (frame: DOMRect, rect: DOMRect, sx = 1, sy = 1) => {
 	const left = sx * rect.left + frame.left;
@@ -143,7 +109,8 @@ export class Reader {
 		if (this.isOpening || !elm) return;
 
 		this.isOpening = true;
-		this.view = await getView(file, elm);
+		this.view = elm;
+		await this.view.open(file);
 		this.view.addEventListener("load", this.#onLoad.bind(this));
 		this.view.addEventListener("relocate", this.#onRelocate.bind(this));
 

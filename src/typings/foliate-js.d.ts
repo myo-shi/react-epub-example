@@ -102,7 +102,7 @@ declare module "@/lib/foliate-js/view" {
 	export class View extends HTMLElement {
 		book: EPUB;
 		renderer: Paginator;
-		open(book: EPUB): Promise<void>;
+		open(book: any): Promise<void>;
 		close(): void;
 		goLeft(): Promise<void>;
 		goRight(): Promise<void>;
