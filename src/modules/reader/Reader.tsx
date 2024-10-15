@@ -11,21 +11,14 @@ import { PopoverArrow, PopoverPortal } from "@radix-ui/react-popover";
 import { useEffect, useRef, useState } from "react";
 import { useTransition as useTransitionState } from "react-transition-state";
 import { CircleIcon } from "./components/circle-icon";
-import { Reader } from "./reader";
+import { Reader, getPosition } from "./reader";
 // import styles from "./styles.module.css";
 
 const reader = new Reader();
 
-type AnnotationRect = {
-	top: number;
-	left: number;
-	height: number;
-	width: number;
-};
-
 type AnnotationState = {
 	cfi: CFI;
-	position: AnnotationRect;
+	position: { x: number; y: number };
 	memo?: string;
 	hasAnnotation?: boolean;
 };
@@ -46,36 +39,19 @@ export function ReaderComp({ bookFile }: ReaderProps) {
 			const view = await reader.open(bookFile, viewerRef.current);
 			view?.addEventListener("text-selected", ({ detail }) => {
 				const range = detail.selection.getRangeAt(0);
-				const rects = range.getBoundingClientRect();
-				const container: Element = view.renderer.container;
-				const containerRects = container.getBoundingClientRect();
-				const left = containerRects.left + rects.left;
-				const top = containerRects.top + rects.top;
+				const pos = getPosition(range);
 				setAnnotation({
 					cfi: detail.cfi,
 					position: {
-						left,
-						top,
-						height: rects.height,
-						width: rects.width,
+						...pos.point,
 					},
 				});
 			});
 			view?.addEventListener("show-annotation", ({ detail }) => {
-				const range = detail.range;
-				const rects = range.getBoundingClientRect();
-				const container: Element = view.renderer.container;
-				const containerRects = container.getBoundingClientRect();
-				const left = containerRects.left + rects.left;
-				const top = containerRects.top + rects.top;
+				const pos = getPosition(detail.range);
 				setAnnotation({
 					cfi: detail.value,
-					position: {
-						left,
-						top,
-						height: rects.height,
-						width: rects.width,
-					},
+					position: { ...pos.point },
 					hasAnnotation: true,
 				});
 			});
@@ -124,10 +100,10 @@ export function ReaderComp({ bookFile }: ReaderProps) {
 						userSelect: "none",
 						pointerEvents: "none",
 						position: "fixed",
-						left: annotation?.position.left,
-						top: annotation?.position.top,
-						height: annotation?.position.height,
-						width: annotation?.position.width,
+						left: annotation?.position.x,
+						top: annotation?.position.y,
+						// height: annotation?.position.height,
+						// width: annotation?.position.width,
 					}}
 				/>
 				<PopoverPortal>

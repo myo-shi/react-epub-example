@@ -70,7 +70,6 @@ declare module "@/lib/foliate-js/view" {
 		heads: HTMLElement[];
 		feet: HTMLElement[];
 		next(): Promise<void>;
-		get container(): Element;
 		setStyles(styles: any): void;
 	}
 

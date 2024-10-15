@@ -83,6 +83,52 @@ const getView = async (file: File, elm: View) => {
 	return elm;
 };
 
+const frameRect = (frame: DOMRect, rect: DOMRect, sx = 1, sy = 1) => {
+	const left = sx * rect.left + frame.left;
+	const right = sx * rect.right + frame.left;
+	const top = sy * rect.top + frame.top;
+	const bottom = sy * rect.bottom + frame.top;
+	return { left, right, top, bottom };
+};
+
+const pointIsInView = ({ x, y }: { x: number; y: number }) =>
+	x > 0 && y > 0 && x < window.innerWidth && y < window.innerHeight;
+
+export const getPosition = (
+	target: Range,
+): { point: { x: number; y: number }; dir?: "up" | "down" } => {
+	// TODO: vertical text
+	const frameElement: HTMLElement = (
+		target.getRootNode?.() ?? target?.endContainer?.getRootNode?.()
+	)?.defaultView?.frameElement;
+
+	const transform = frameElement
+		? getComputedStyle(frameElement).transform
+		: "";
+	const match = transform.match(/matrix\((.+)\)/);
+	const [sx, , , sy] =
+		match?.[1]?.split(/\s*,\s*/)?.map((x) => Number.parseFloat(x)) ?? [];
+
+	const frame = frameElement?.getBoundingClientRect() ?? { top: 0, left: 0 };
+	const rects = Array.from(target.getClientRects());
+	const first = frameRect(frame, rects[0], sx, sy);
+	const last = frameRect(frame, rects.at(-1), sx, sy);
+	const start = {
+		point: { x: (first.left + first.right) / 2, y: first.top },
+		dir: "up" as const,
+	};
+	const end = {
+		point: { x: (last.left + last.right) / 2, y: last.bottom },
+		dir: "down" as const,
+	};
+	const startInView = pointIsInView(start.point);
+	const endInView = pointIsInView(end.point);
+	if (!startInView && !endInView) return { point: { x: 0, y: 0 } };
+	if (!startInView) return end;
+	if (!endInView) return start;
+	return start.point.y > window.innerHeight - end.point.y ? start : end;
+};
+
 export class Reader {
 	view: View | null = null;
 	isOpening = false;
