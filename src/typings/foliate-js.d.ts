@@ -32,19 +32,32 @@ declare module "@/lib/foliate-js/overlayer" {
 }
 
 declare module "@/lib/foliate-js/epub" {
+	export type NavItem = {
+		id: number;
+		label: string;
+		href: string;
+		subitems: NavItem[] | null;
+	};
+	export type TOC = NavItem[];
 	export class EPUB {
+		toc: TOC;
+		metadata: any;
+		rendition: any;
+		media: any;
+		dir: any;
+
 		constructor(params: {
 			loadText: any;
 			loadBlob: any;
 			getSize: (name: string) => number;
 			sha1?: any;
 		});
-		init(): Promise<void>;
+		init(): Promise<EPUB>;
 	}
 }
 
 declare module "@/lib/foliate-js/view" {
-	import type { EPUB } from "@/lib/foliate-js/epub";
+	import type { EPUB, NavItem } from "@/lib/foliate-js/epub";
 	import type { CFI } from "@/lib/foliate-js/epubcfi";
 	import type { DrawFunc } from "@/lib/foliate-js/overlayer";
 
@@ -54,8 +67,11 @@ declare module "@/lib/foliate-js/view" {
 	};
 
 	interface Paginator extends HTMLElement {
+		heads: HTMLElement[];
+		feet: HTMLElement[];
 		next(): Promise<void>;
 		get container(): Element;
+		setStyles(styles: any): void;
 	}
 
 	// https://github.com/vaadin/web-components/issues/350
@@ -64,27 +80,36 @@ declare module "@/lib/foliate-js/view" {
 		"draw-annotation": CustomEvent<{
 			draw: (func: DrawFunc, opts?: any) => void;
 			annotation: Annotation;
-			doc: any;
-			range: any;
+			doc: Document;
+			range: Range;
 		}>;
 		"show-annotation": CustomEvent<{
-			value: string;
-			range: any;
+			value: CFI;
+			range: Range;
 			index: number;
+		}>;
+		relocate: CustomEvent<{
+			fraction: any;
+			location: any;
+			tocItem: NavItem;
+			pageItem: any;
 		}>;
 		"text-selected": CustomEvent<{
 			selection: Selection;
-			container: Element;
+			cfi: CFI;
 		}>;
 	}
 
 	export class View extends HTMLElement {
+		book: EPUB;
 		renderer: Paginator;
 		open(book: EPUB): Promise<void>;
+		close(): void;
 		goLeft(): Promise<void>;
 		goRight(): Promise<void>;
 		getCFI(index: number, range?: Range): CFI;
 		addAnnotation(annotation: Annotation, remove?: boolean): Promise<void>;
+		deleteAnnotation(annotation: Annotation);
 		addEventListener<K extends keyof FoliateViewElementEventMap>(
 			type: K,
 			listener: (this: HTMLElement, ev: FoliateViewElementEventMap[K]) => any,
