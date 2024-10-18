@@ -18,7 +18,7 @@ const reader = new Reader();
 
 type AnnotationState = {
 	cfi: CFI;
-	position: { x: number; y: number };
+	position: { point: { x: number; y: number }; dir: "up" | "down" };
 	memo?: string;
 	hasAnnotation?: boolean;
 };
@@ -43,15 +43,25 @@ export function ReaderComp({ bookFile }: ReaderProps) {
 				setAnnotation({
 					cfi: detail.cfi,
 					position: {
-						...pos.point,
+						point: {
+							...pos.point,
+						},
+						dir: pos.dir ?? "down",
 					},
 				});
 			});
 			view?.addEventListener("show-annotation", ({ detail }) => {
 				const pos = getPosition(detail.range);
+				console.log(pos);
+
 				setAnnotation({
 					cfi: detail.value,
-					position: { ...pos.point },
+					position: {
+						point: {
+							...pos.point,
+						},
+						dir: pos.dir ?? "down",
+					},
 					hasAnnotation: true,
 				});
 			});
@@ -100,14 +110,13 @@ export function ReaderComp({ bookFile }: ReaderProps) {
 						userSelect: "none",
 						pointerEvents: "none",
 						position: "fixed",
-						left: annotation?.position.x,
-						top: annotation?.position.y,
-						// height: annotation?.position.height,
-						// width: annotation?.position.width,
+						left: annotation?.position.point.x,
+						top: annotation?.position.point.y,
 					}}
 				/>
 				<PopoverPortal>
 					<PopoverContent
+						side={annotation?.position.dir === "up" ? "top" : "bottom"}
 						onPointerDownOutside={() => {
 							setAnnotation(null);
 						}}

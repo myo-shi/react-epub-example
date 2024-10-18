@@ -15,6 +15,11 @@
 		"enabled": true,
 		"rules": {
 			"recommended": true,
+			"suspicious": {
+				"noExplicitAny": {
+					"level": "warn"
+				}
+			},
 			"style": {
 				"useSelfClosingElements": {
 					"level": "error",

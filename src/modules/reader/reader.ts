@@ -2,54 +2,152 @@ import "@/lib/foliate-js/view";
 import { Overlayer } from "@/lib/foliate-js/overlayer";
 import type { View } from "@/lib/foliate-js/view";
 import debounce from "lodash.debounce";
+
+type Theme = {
+	light: {
+		fg: string;
+		bg: string;
+		link: string;
+	};
+	dark: {
+		fg: string;
+		bg: string;
+		link: string;
+	};
+};
+
+const DEFAULT_THEME: Theme = {
+	light: { fg: "#000000", bg: "#ffffff", link: "#0066cc" },
+	dark: { fg: "#e0e0e0", bg: "#222222", link: "#77bbee" },
+};
+
 const getCSS = ({
-	spacing,
-	justify,
-	hyphenate,
-}: {
-	spacing: number;
-	justify: boolean;
-	hyphenate: boolean;
-}) => `
+	lineHeight = 1.5,
+	justify = false,
+	hyphenate = false,
+	invert = false,
+	theme = DEFAULT_THEME,
+	overrideFont = false,
+	userStylesheet = "",
+	mediaActiveClass = "",
+}) => [
+	`
     @namespace epub "http://www.idpf.org/2007/ops";
-    html {
-        color-scheme: light dark;
-    }
-    /* https://github.com/whatwg/html/issues/5426 */
-    @media (prefers-color-scheme: dark) {
-        a:link {
-            color: lightblue;
+    @media print {
+        html {
+            column-width: auto !important;
+            height: auto !important;
+            width: auto !important;
         }
     }
-    p, li, blockquote, dd {
-        line-height: ${spacing};
-        text-align: ${justify ? "justify" : "start"};
-        -webkit-hyphens: ${hyphenate ? "auto" : "manual"};
-        hyphens: ${hyphenate ? "auto" : "manual"};
-        -webkit-hyphenate-limit-before: 3;
-        -webkit-hyphenate-limit-after: 2;
-        -webkit-hyphenate-limit-lines: 2;
+    @media screen {
+        html {
+            color-scheme: ${invert ? "only light" : "light dark"};
+            color: ${theme.light.fg};
+        }
+        a:any-link {
+            color: ${theme.light.link};
+        }
+        @media (prefers-color-scheme: dark) {
+            html {
+                color: ${invert ? theme.inverted.fg : theme.dark.fg};
+                ${invert ? "-webkit-font-smoothing: antialiased;" : ""}
+            }
+            a:any-link {
+                color: ${invert ? theme.inverted.link : theme.dark.link};
+            }
+        }
+        aside[epub|type~="footnote"] {
+            display: none;
+        }
+    }
+    html {
+        line-height: ${lineHeight};
         hanging-punctuation: allow-end last;
+        orphans: 2;
         widows: 2;
     }
-    /* prevent the above from overriding the align attribute */
     [align="left"] { text-align: left; }
     [align="right"] { text-align: right; }
     [align="center"] { text-align: center; }
     [align="justify"] { text-align: justify; }
-
+    :is(hgroup, header) p {
+        text-align: unset;
+        hyphens: unset;
+    }
     pre {
         white-space: pre-wrap !important;
+        tab-size: 2;
     }
-    aside[epub|type~="endnote"],
-    aside[epub|type~="footnote"],
-    aside[epub|type~="note"],
-    aside[epub|type~="rearnote"] {
-        display: none;
+`,
+	`
+    @media screen and (prefers-color-scheme: light) {
+        ${
+					theme.light.bg !== "#ffffff"
+						? `
+        html, body {
+            color: ${theme.light.fg} !important;
+            background: none !important;
+        }
+        body * {
+            color: inherit !important;
+            border-color: currentColor !important;
+            background-color: ${theme.light.bg} !important;
+        }
+        a:any-link {
+            color: ${theme.light.link} !important;
+        }
+        svg, img {
+            background-color: transparent !important;
+            mix-blend-mode: multiply;
+        }
+        .${CSS.escape(mediaActiveClass)}, .${CSS.escape(mediaActiveClass)} * {
+            color: ${theme.light.fg} !important;
+            background: color-mix(in hsl, ${theme.light.fg}, #fff 50%) !important;
+            background: color-mix(in hsl, ${theme.light.fg}, ${theme.light.bg} 85%) !important;
+        }`
+						: ""
+				}
     }
-`;
+    @media screen and (prefers-color-scheme: dark) {
+        ${
+					invert
+						? ""
+						: `
+        html, body {
+            color: ${theme.dark.fg} !important;
+            background: none !important;
+        }
+        body * {
+            color: inherit !important;
+            border-color: currentColor !important;
+            background-color: ${theme.dark.bg} !important;
+        }
+        a:any-link {
+            color: ${theme.dark.link} !important;
+        }
+        .${CSS.escape(mediaActiveClass)}, .${CSS.escape(mediaActiveClass)} * {
+            color: ${theme.dark.fg} !important;
+            background: color-mix(in hsl, ${theme.dark.fg}, #000 50%) !important;
+            background: color-mix(in hsl, ${theme.dark.fg}, ${theme.dark.bg} 75%) !important;
+        }`
+				}
+    }
+    p, li, blockquote, dd {
+        line-height: ${lineHeight};
+        text-align: ${justify ? "justify" : "start"};
+        hyphens: ${hyphenate ? "auto" : "none"};
+    }
+    ${overrideFont ? "* { font-family: revert !important }" : ""}
+${userStylesheet}`,
+];
 
-const frameRect = (frame: DOMRect, rect: DOMRect, sx = 1, sy = 1) => {
+const frameRect = (
+	frame: { top: number; left: number },
+	rect: DOMRect,
+	sx = 1,
+	sy = 1,
+) => {
 	const left = sx * rect.left + frame.left;
 	const right = sx * rect.right + frame.left;
 	const top = sy * rect.top + frame.top;
@@ -63,10 +161,8 @@ const pointIsInView = ({ x, y }: { x: number; y: number }) =>
 export const getPosition = (
 	target: Range,
 ): { point: { x: number; y: number }; dir?: "up" | "down" } => {
-	// TODO: vertical text
-	const frameElement: HTMLElement = (
-		target.getRootNode?.() ?? target?.endContainer?.getRootNode?.()
-	)?.defaultView?.frameElement;
+	const frameElement = (target?.endContainer?.getRootNode?.() as Document)
+		?.defaultView?.frameElement;
 
 	const transform = frameElement
 		? getComputedStyle(frameElement).transform
@@ -78,7 +174,8 @@ export const getPosition = (
 	const frame = frameElement?.getBoundingClientRect() ?? { top: 0, left: 0 };
 	const rects = Array.from(target.getClientRects());
 	const first = frameRect(frame, rects[0], sx, sy);
-	const last = frameRect(frame, rects.at(-1), sx, sy);
+	// biome-ignore lint/style/noNonNullAssertion: <explanation>
+	const last = frameRect(frame, rects.at(-1)!, sx, sy);
 	const start = {
 		point: { x: (first.left + first.right) / 2, y: first.top },
 		dir: "up" as const,
@@ -104,6 +201,32 @@ export class Reader {
 		justify: true,
 		hyphenate: true,
 	};
+	iframe: Element | null = null;
+
+	setAppearance() {
+		// Object.assign(this.style, style)
+		// const { theme } = style
+		const theme = DEFAULT_THEME;
+		const $style = document.documentElement.style;
+		$style.setProperty("--light-bg", theme.light.bg);
+		$style.setProperty("--light-fg", theme.light.fg);
+		$style.setProperty("--dark-bg", theme.dark.bg);
+		$style.setProperty("--dark-fg", theme.dark.fg);
+		// const renderer = this.view?.renderer
+		// if (renderer) {
+		// 		renderer.setAttribute('flow', layout.flow)
+		// 		renderer.setAttribute('gap', layout.gap * 100 + '%')
+		// 		renderer.setAttribute('max-inline-size', layout.maxInlineSize + 'px')
+		// 		renderer.setAttribute('max-block-size', layout.maxBlockSize + 'px')
+		// 		renderer.setAttribute('max-column-count', layout.maxColumnCount)
+		// 		if (layout.animated) renderer.setAttribute('animated', '')
+		// 		else renderer.removeAttribute('animated')
+		// 		renderer.setStyles?.(getCSS(this.style))
+		// }
+		// document.body.classList.toggle('invert', this.style.invert)
+		// if (autohideCursor) this.view?.setAttribute('autohide-cursor', '')
+		// else this.view?.removeAttribute('autohide-cursor')
+	}
 
 	async open(file: File, elm: View) {
 		if (this.isOpening || !elm) return;
@@ -131,6 +254,7 @@ export class Reader {
 			// const annotation = this.annotationsByValue.get(e.detail.value);
 			// if (annotation.note) alert(annotation.note);
 		});
+		this.setAppearance();
 		return this.view;
 	}
 
@@ -149,15 +273,26 @@ export class Reader {
 			this.view?.goRight();
 		}
 	}
-	#onLoad(event: { detail: { doc: Document; index: number } }) {
-		const { detail } = event;
+	#onLoad({ detail }: { detail: { doc: Document; index: number } }) {
+		console.log("onLoad");
 		const doc = detail.doc;
+		this.iframe =
+			this.view?.renderer.getContents()[0]?.doc.defaultView?.frameElement ??
+			null;
+		(this.iframe as HTMLElement).style.colorScheme = "light dark";
+
 		doc.addEventListener("keydown", this.#handleKeydown.bind(this));
 		doc.addEventListener("wheel", this.#handleWheel.bind(this));
+		doc.addEventListener("mousemove", this.#onMouseMove.bind(this));
+		doc.addEventListener("pointerdown", this.#onPointerDown.bind(this));
 		doc.addEventListener(
 			"selectionchange",
 			debounce(async () => {
 				if (!this.view) return;
+				this.iframe =
+					this.view.renderer.getContents()[0]?.doc.defaultView?.frameElement ??
+					null;
+
 				const selection = doc.getSelection();
 				this.selectedText = selection?.toString() ?? null;
 				const cfi = this.view.getCFI(
@@ -203,32 +338,31 @@ export class Reader {
 				}
 			}, 300),
 		);
-		doc.addEventListener("mousemove", (event) => {
-			const container = this.view?.renderer.container;
-			if (!container) {
-				return;
-			}
-			const containerRect = container.getBoundingClientRect();
-			const clientX = event.clientX + containerRect.left;
-			const clientY = event.clientY + containerRect.top;
-			const mouseEvent = new MouseEvent("mousemove", {
+	}
+
+	#onPointerDown(event: PointerEvent) {
+		window.document.dispatchEvent(
+			new MouseEvent("pointerdown", {
 				bubbles: true,
 				cancelable: true,
-				clientX,
-				clientY,
-			});
-			window.dispatchEvent(mouseEvent);
+				screenX: event.screenX,
+				screenY: event.screenY,
+			}),
+		);
+	}
+	#onMouseMove(event: MouseEvent) {
+		if (!this.iframe) return;
+		// TODO: Should use the rects of #container element
+		const iframeRect = this.iframe.getBoundingClientRect();
+		const clientX = event.clientX + iframeRect.left;
+		const clientY = event.clientY + iframeRect.top;
+		const mouseEvent = new MouseEvent("mousemove", {
+			bubbles: true,
+			cancelable: true,
+			clientX,
+			clientY,
 		});
-		doc.addEventListener("pointerdown", (event) => {
-			window.document.dispatchEvent(
-				new MouseEvent("pointerdown", {
-					bubbles: true,
-					cancelable: true,
-					screenX: event.screenX,
-					screenY: event.screenY,
-				}),
-			);
-		});
+		window.dispatchEvent(mouseEvent);
 	}
 	#onRelocate({ detail }: any) {
 		if (!this.view) return;

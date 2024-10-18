@@ -59,7 +59,7 @@ declare module "@/lib/foliate-js/epub" {
 declare module "@/lib/foliate-js/view" {
 	import type { EPUB, NavItem } from "@/lib/foliate-js/epub";
 	import type { CFI } from "@/lib/foliate-js/epubcfi";
-	import type { DrawFunc } from "@/lib/foliate-js/overlayer";
+	import type { DrawFunc, Overlayer } from "@/lib/foliate-js/overlayer";
 
 	type Annotation = {
 		value: string;
@@ -71,6 +71,15 @@ declare module "@/lib/foliate-js/view" {
 		feet: HTMLElement[];
 		next(): Promise<void>;
 		setStyles(styles: any): void;
+		getContents():
+			| [
+					{
+						doc: Document;
+						overlayer: Overlayer;
+						index: number;
+					},
+			  ]
+			| [];
 	}
 
 	// https://github.com/vaadin/web-components/issues/350
