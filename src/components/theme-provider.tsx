@@ -1,6 +1,10 @@
+import type { Theme as DaisyuiTheme } from "daisyui";
 import { createContext, useContext, useEffect, useState } from "react";
 
-type Theme = "dark" | "light" | "system";
+export type Theme = Extract<
+	DaisyuiTheme,
+	"light" | "dark" | "cupcake" | "retro" | "dim" | "coffee"
+>;
 
 type ThemeProviderProps = {
 	children: React.ReactNode;
@@ -14,7 +18,7 @@ type ThemeProviderState = {
 };
 
 const initialState: ThemeProviderState = {
-	theme: "system",
+	theme: "cupcake",
 	setTheme: () => null,
 };
 
@@ -22,34 +26,30 @@ const ThemeProviderContext = createContext<ThemeProviderState>(initialState);
 
 export function ThemeProvider({
 	children,
-	defaultTheme = "system",
+	defaultTheme,
 	storageKey = "vite-ui-theme",
 	...props
 }: ThemeProviderProps) {
-	const [theme, setTheme] = useState<Theme>(
-		() => (localStorage.getItem(storageKey) as Theme) || defaultTheme,
+	const [theme, setTheme] = useState(
+		() =>
+			(localStorage.getItem(storageKey) as Theme | undefined) || defaultTheme,
 	);
+	const actualTheme =
+		theme == null
+			? window.matchMedia("(prefers-color-scheme: dark)").matches
+				? "dark"
+				: "light"
+			: theme;
 
 	useEffect(() => {
 		const root = window.document.documentElement;
-
-		root.classList.remove("light", "dark");
-
-		if (theme === "system") {
-			const systemTheme = window.matchMedia("(prefers-color-scheme: dark)")
-				.matches
-				? "dark"
-				: "light";
-
-			root.classList.add(systemTheme);
-			return;
-		}
-
-		root.classList.add(theme);
-	}, [theme]);
+		root.removeAttribute("data-theme");
+		root.setAttribute("data-theme", actualTheme);
+		root.classList.add("dark");
+	}, [actualTheme]);
 
 	const value = {
-		theme,
+		theme: actualTheme,
 		setTheme: (theme: Theme) => {
 			localStorage.setItem(storageKey, theme);
 			setTheme(theme);

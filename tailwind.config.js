@@ -2,6 +2,9 @@
 export default {
 	darkMode: ["class"],
 	content: ["./src/**/*.{js,jsx,ts,tsx}"],
+	daisyui: {
+		themes: true,
+	},
 	theme: {
 		extend: {
 			borderRadius: {
@@ -10,8 +13,8 @@ export default {
 				sm: "calc(var(--radius) - 4px)",
 			},
 			colors: {
-				background: "var(--background)",
-				foreground: "var(--foreground)",
+				// background: "var(--background)",
+				// foreground: "var(--foreground)",
 				card: {
 					DEFAULT: "hsl(var(--card))",
 					foreground: "hsl(var(--card-foreground))",
@@ -75,5 +78,5 @@ export default {
 			},
 		},
 	},
-	plugins: [require("tailwindcss-animate")],
+	plugins: [require("tailwindcss-animate"), require('daisyui')],
 };

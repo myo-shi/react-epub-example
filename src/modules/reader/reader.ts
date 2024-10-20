@@ -1,146 +1,10 @@
 import "@/lib/foliate-js/view";
+import type { Theme } from "@/components/theme-provider";
 import { Overlayer } from "@/lib/foliate-js/overlayer";
 import type { View } from "@/lib/foliate-js/view";
+import daisyuiThemes from "daisyui/src/theming/themes";
 import debounce from "lodash.debounce";
-
-type Theme = {
-	light: {
-		fg: string;
-		bg: string;
-		link: string;
-	};
-	dark: {
-		fg: string;
-		bg: string;
-		link: string;
-	};
-};
-
-const DEFAULT_THEME: Theme = {
-	light: { fg: "#000000", bg: "#ffffff", link: "#0066cc" },
-	dark: { fg: "#e0e0e0", bg: "#222222", link: "#77bbee" },
-};
-
-const getCSS = ({
-	lineHeight = 1.5,
-	justify = false,
-	hyphenate = false,
-	invert = false,
-	theme = DEFAULT_THEME,
-	overrideFont = false,
-	userStylesheet = "",
-	mediaActiveClass = "",
-}) => [
-	`
-    @namespace epub "http://www.idpf.org/2007/ops";
-    @media print {
-        html {
-            column-width: auto !important;
-            height: auto !important;
-            width: auto !important;
-        }
-    }
-    @media screen {
-        html {
-            color-scheme: ${invert ? "only light" : "light dark"};
-            color: ${theme.light.fg};
-        }
-        a:any-link {
-            color: ${theme.light.link};
-        }
-        @media (prefers-color-scheme: dark) {
-            html {
-                color: ${invert ? theme.inverted.fg : theme.dark.fg};
-                ${invert ? "-webkit-font-smoothing: antialiased;" : ""}
-            }
-            a:any-link {
-                color: ${invert ? theme.inverted.link : theme.dark.link};
-            }
-        }
-        aside[epub|type~="footnote"] {
-            display: none;
-        }
-    }
-    html {
-        line-height: ${lineHeight};
-        hanging-punctuation: allow-end last;
-        orphans: 2;
-        widows: 2;
-    }
-    [align="left"] { text-align: left; }
-    [align="right"] { text-align: right; }
-    [align="center"] { text-align: center; }
-    [align="justify"] { text-align: justify; }
-    :is(hgroup, header) p {
-        text-align: unset;
-        hyphens: unset;
-    }
-    pre {
-        white-space: pre-wrap !important;
-        tab-size: 2;
-    }
-`,
-	`
-    @media screen and (prefers-color-scheme: light) {
-        ${
-					theme.light.bg !== "#ffffff"
-						? `
-        html, body {
-            color: ${theme.light.fg} !important;
-            background: none !important;
-        }
-        body * {
-            color: inherit !important;
-            border-color: currentColor !important;
-            background-color: ${theme.light.bg} !important;
-        }
-        a:any-link {
-            color: ${theme.light.link} !important;
-        }
-        svg, img {
-            background-color: transparent !important;
-            mix-blend-mode: multiply;
-        }
-        .${CSS.escape(mediaActiveClass)}, .${CSS.escape(mediaActiveClass)} * {
-            color: ${theme.light.fg} !important;
-            background: color-mix(in hsl, ${theme.light.fg}, #fff 50%) !important;
-            background: color-mix(in hsl, ${theme.light.fg}, ${theme.light.bg} 85%) !important;
-        }`
-						: ""
-				}
-    }
-    @media screen and (prefers-color-scheme: dark) {
-        ${
-					invert
-						? ""
-						: `
-        html, body {
-            color: ${theme.dark.fg} !important;
-            background: none !important;
-        }
-        body * {
-            color: inherit !important;
-            border-color: currentColor !important;
-            background-color: ${theme.dark.bg} !important;
-        }
-        a:any-link {
-            color: ${theme.dark.link} !important;
-        }
-        .${CSS.escape(mediaActiveClass)}, .${CSS.escape(mediaActiveClass)} * {
-            color: ${theme.dark.fg} !important;
-            background: color-mix(in hsl, ${theme.dark.fg}, #000 50%) !important;
-            background: color-mix(in hsl, ${theme.dark.fg}, ${theme.dark.bg} 75%) !important;
-        }`
-				}
-    }
-    p, li, blockquote, dd {
-        line-height: ${lineHeight};
-        text-align: ${justify ? "justify" : "start"};
-        hyphens: ${hyphenate ? "auto" : "none"};
-    }
-    ${overrideFont ? "* { font-family: revert !important }" : ""}
-${userStylesheet}`,
-];
+import { getCSS } from "./utils";
 
 const frameRect = (
 	frame: { top: number; left: number },
@@ -203,33 +67,32 @@ export class Reader {
 	};
 	iframe: Element | null = null;
 
-	setAppearance() {
-		// Object.assign(this.style, style)
-		// const { theme } = style
-		const theme = DEFAULT_THEME;
-		const $style = document.documentElement.style;
-		$style.setProperty("--light-bg", theme.light.bg);
-		$style.setProperty("--light-fg", theme.light.fg);
-		$style.setProperty("--dark-bg", theme.dark.bg);
-		$style.setProperty("--dark-fg", theme.dark.fg);
-		// const renderer = this.view?.renderer
-		// if (renderer) {
-		// 		renderer.setAttribute('flow', layout.flow)
-		// 		renderer.setAttribute('gap', layout.gap * 100 + '%')
-		// 		renderer.setAttribute('max-inline-size', layout.maxInlineSize + 'px')
-		// 		renderer.setAttribute('max-block-size', layout.maxBlockSize + 'px')
-		// 		renderer.setAttribute('max-column-count', layout.maxColumnCount)
-		// 		if (layout.animated) renderer.setAttribute('animated', '')
-		// 		else renderer.removeAttribute('animated')
-		// 		renderer.setStyles?.(getCSS(this.style))
-		// }
+	setAppearance(themeName: Theme) {
+		const daisyuiTheme = daisyuiThemes[themeName];
+		const theme = {
+			fg: daisyuiTheme["base-content"],
+			bg: daisyuiTheme["base-100"],
+			link: daisyuiTheme.info,
+			isDark: ["dark", "dim", "coffee"].some((c) => c === themeName),
+		};
+		const renderer = this.view?.renderer;
+		if (renderer) {
+			// 		renderer.setAttribute('flow', layout.flow)
+			// 		renderer.setAttribute('gap', layout.gap * 100 + '%')
+			// 		renderer.setAttribute('max-inline-size', layout.maxInlineSize + 'px')
+			// 		renderer.setAttribute('max-block-size', layout.maxBlockSize + 'px')
+			// 		renderer.setAttribute('max-column-count', layout.maxColumnCount)
+			// 		if (layout.animated) renderer.setAttribute('animated', '')
+			// 		else renderer.removeAttribute('animated')
+			renderer.setStyles?.(getCSS({ ...this.style, theme }));
+		}
 		// document.body.classList.toggle('invert', this.style.invert)
 		// if (autohideCursor) this.view?.setAttribute('autohide-cursor', '')
 		// else this.view?.removeAttribute('autohide-cursor')
 	}
 
 	async open(file: File, elm: View) {
-		if (this.isOpening || !elm) return;
+		if (this.isOpening) return;
 
 		this.isOpening = true;
 		this.view = elm;
@@ -239,7 +102,6 @@ export class Reader {
 
 		const { book } = this.view;
 		console.log("toc", book.toc);
-		this.view.renderer.setStyles?.(getCSS(this.style));
 		this.view.renderer?.next();
 
 		this.view.addEventListener("draw-annotation", (event) => {
@@ -254,7 +116,6 @@ export class Reader {
 			// const annotation = this.annotationsByValue.get(e.detail.value);
 			// if (annotation.note) alert(annotation.note);
 		});
-		this.setAppearance();
 		return this.view;
 	}
 
